@@ -1,0 +1,676 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+<meta name="theme-color" content="#0a0a16">
+<title>鉱石おみくじ ⛏</title>
+<style>
+*{margin:0;padding:0;box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+:root{
+  --gold:#f6c453; --gold2:#f2a03d;
+  --bg:#0a0a16;
+}
+html,body{height:100%}
+body{
+  background:var(--bg);
+  font-family:'Hiragino Mincho ProN','Yu Mincho',serif;
+  color:#e8e8f0;overflow:hidden;
+  overscroll-behavior:none;touch-action:manipulation;
+  user-select:none;-webkit-user-select:none;
+}
+
+/* ---------- shared background scene ---------- */
+#scene{position:fixed;inset:0;z-index:0;pointer-events:none;overflow:hidden}
+#starsWrap{position:absolute;inset:0}
+.star{position:absolute;background:#fff;border-radius:50%;animation:tw var(--d,3s) ease-in-out infinite;animation-delay:var(--dl,0s)}
+@keyframes tw{0%,100%{opacity:var(--o,.3)}50%{opacity:1}}
+.torch-glow{position:absolute;border-radius:50%;filter:blur(30px);animation:flick 2.4s ease-in-out infinite}
+@keyframes flick{0%,100%{opacity:.5;transform:scale(1)}45%{opacity:.85;transform:scale(1.08)}70%{opacity:.65;transform:scale(.97)}}
+
+/* ---------- screens ---------- */
+.screen{position:fixed;inset:0;z-index:10;display:flex;flex-direction:column;align-items:center;
+  padding:calc(env(safe-area-inset-top) + 22px) 22px calc(env(safe-area-inset-bottom) + 22px);
+  opacity:0;pointer-events:none;transition:opacity .45s ease;overflow-y:auto}
+.screen.on{opacity:1;pointer-events:auto}
+
+/* ---------- start ---------- */
+#start{justify-content:center;text-align:center}
+.brand{font-size:.72rem;letter-spacing:.42em;color:var(--gold);opacity:.75;margin-bottom:6px;padding-left:.42em}
+.title{font-size:2.5rem;line-height:1.2;font-weight:bold;
+  background:linear-gradient(135deg,#fff3cf,var(--gold),var(--gold2));
+  -webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;
+  filter:drop-shadow(0 3px 14px rgba(246,164,61,.4));margin-bottom:4px}
+.title small{display:block;font-size:.9rem;letter-spacing:.3em;color:#9a8f7a;-webkit-text-fill-color:#9a8f7a;margin-top:10px}
+.mine-art{width:min(78vw,300px);height:auto;margin:24px auto 20px;filter:drop-shadow(0 10px 30px rgba(0,0,0,.6))}
+.lead{font-size:.92rem;line-height:1.9;color:#b9b6c8;max-width:300px;margin:0 auto 30px}
+.lead b{color:var(--gold);font-weight:normal}
+.btn{
+  appearance:none;border:none;cursor:pointer;font-family:inherit;
+  background:linear-gradient(135deg,var(--gold),var(--gold2));
+  color:#3a2606;font-weight:bold;font-size:1.05rem;letter-spacing:.14em;
+  padding:16px 46px;border-radius:40px;
+  box-shadow:0 8px 26px rgba(242,160,61,.4),inset 0 1px 0 rgba(255,255,255,.5);
+  transition:transform .12s;animation:pulse 2.4s ease-in-out infinite}
+.btn:active{transform:scale(.95)}
+@keyframes pulse{0%,100%{box-shadow:0 8px 26px rgba(242,160,61,.35),inset 0 1px 0 rgba(255,255,255,.5)}50%{box-shadow:0 8px 40px rgba(242,160,61,.6),inset 0 1px 0 rgba(255,255,255,.5)}}
+.hint-small{margin-top:18px;font-size:.68rem;color:#5c5870;letter-spacing:.08em}
+
+/* ---------- dig ---------- */
+#dig{justify-content:center}
+.dig-head{text-align:center;margin-bottom:18px}
+.dig-head h2{font-size:1.28rem;color:#fff;letter-spacing:.06em}
+.dig-status{font-size:.85rem;color:var(--gold);margin-top:8px;height:1.2em;transition:opacity .3s;letter-spacing:.05em}
+
+.card-frame{
+  position:relative;width:min(84vw,340px);aspect-ratio:1/1.16;border-radius:24px;
+  padding:12px;background:linear-gradient(150deg,#2a2015,#171009);
+  box-shadow:0 24px 60px rgba(0,0,0,.7),inset 0 0 0 2px rgba(246,196,83,.25),inset 0 0 40px rgba(0,0,0,.6);
+}
+.card-frame::before{content:'';position:absolute;inset:6px;border:1px dashed rgba(246,196,83,.28);border-radius:18px;pointer-events:none;z-index:6}
+.corner{position:absolute;width:16px;height:16px;border:2px solid var(--gold);opacity:.6;z-index:6}
+.corner.tl{top:10px;left:10px;border-right:none;border-bottom:none}
+.corner.tr{top:10px;right:10px;border-left:none;border-bottom:none}
+.corner.bl{bottom:10px;left:10px;border-right:none;border-top:none}
+.corner.br{bottom:10px;right:10px;border-left:none;border-top:none}
+
+.card-inner{position:relative;width:100%;height:100%;border-radius:16px;overflow:hidden}
+/* reward layer (beneath) */
+.reward-layer{position:absolute;inset:0;display:flex;flex-direction:column;align-items:center;justify-content:center;
+  background:radial-gradient(ellipse at 50% 38%,#241d3a 0%,#120e22 55%,#0a0713 100%)}
+.reward-layer .cave-glow{position:absolute;width:80%;height:80%;border-radius:50%;filter:blur(40px);opacity:.55}
+.reward-svg{width:56%;height:56%;z-index:2;position:relative;animation:floatGem 3.4s ease-in-out infinite}
+@keyframes floatGem{0%,100%{transform:translateY(0) rotate(-1deg)}50%{transform:translateY(-8px) rotate(1deg)}}
+.reward-name{position:relative;z-index:2;margin-top:6px;font-size:1.15rem;font-weight:bold;letter-spacing:.1em;opacity:0;transition:opacity .4s}
+.reward-shine{position:absolute;inset:0;z-index:3;background:linear-gradient(115deg,transparent 40%,rgba(255,255,255,.18) 50%,transparent 60%);
+  transform:translateX(-100%);animation:shineSweep 3s ease-in-out infinite}
+@keyframes shineSweep{0%{transform:translateX(-100%)}55%,100%{transform:translateX(100%)}}
+/* scratch cover canvas */
+#scratch{position:absolute;inset:0;z-index:4;touch-action:none;cursor:pointer;width:100%;height:100%}
+.big-pick{position:absolute;z-index:7;width:96px;height:96px;pointer-events:none;opacity:0;
+  transform-origin:82% 82%;transform:translate(-26%,-72%) rotate(-42deg);
+  filter:drop-shadow(0 5px 7px rgba(0,0,0,.6));transition:opacity .18s}
+.big-pick.swing{animation:pickSwing .3s cubic-bezier(.3,1.2,.5,1)}
+@keyframes pickSwing{
+  0%{transform:translate(-26%,-72%) rotate(-62deg) scale(1.06)}
+  42%{transform:translate(-26%,-72%) rotate(16deg) scale(1.14)}
+  100%{transform:translate(-26%,-72%) rotate(-42deg) scale(1)}
+}
+.card-frame.shake{animation:cardShake .22s ease-out}
+@keyframes cardShake{0%,100%{transform:translate(0,0)}20%{transform:translate(-4px,3px)}45%{transform:translate(3px,-3px)}70%{transform:translate(-3px,-2px)}90%{transform:translate(2px,2px)}}
+.hit-flash{position:absolute;z-index:6;border-radius:50%;pointer-events:none;
+  background:radial-gradient(circle,rgba(255,248,230,.7),transparent 70%);
+  transform:translate(-50%,-50%) scale(.2);animation:hitF .32s ease-out forwards}
+@keyframes hitF{to{transform:translate(-50%,-50%) scale(2.6);opacity:0}}
+.crack-flash{position:absolute;left:0;top:0;z-index:6;pointer-events:none;animation:crackF .5s ease-out forwards}
+@keyframes crackF{0%{opacity:.95}100%{opacity:0}}
+
+.progress-wrap{width:min(84vw,340px);margin-top:20px}
+.progress-track{height:8px;border-radius:8px;background:rgba(255,255,255,.08);overflow:hidden}
+.progress-fill{height:100%;width:0;border-radius:8px;background:linear-gradient(90deg,var(--gold2),var(--gold));transition:width .18s ease}
+.progress-label{text-align:center;font-size:.72rem;color:#77738a;margin-top:9px;letter-spacing:.08em}
+.reveal-now{margin-top:16px;font-size:.8rem;color:#8a8;background:none;border:1px solid rgba(255,255,255,.14);
+  color:#aca9bd;padding:8px 20px;border-radius:20px;font-family:inherit;cursor:pointer;opacity:0;pointer-events:none;transition:opacity .3s}
+.reveal-now.show{opacity:1;pointer-events:auto}
+
+/* ---------- result / voucher ---------- */
+#result{justify-content:flex-start;padding-top:calc(env(safe-area-inset-top) + 30px)}
+.result-burst{font-size:.8rem;letter-spacing:.3em;color:var(--gold);margin-bottom:4px;opacity:0;animation:fadeDown .6s .1s forwards}
+@keyframes fadeDown{from{opacity:0;transform:translateY(-10px)}to{opacity:1;transform:translateY(0)}}
+.fortune-line{font-size:2rem;font-weight:bold;margin-bottom:20px;opacity:0;animation:popIn .55s .25s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes popIn{0%{opacity:0;transform:scale(.6)}100%{opacity:1;transform:scale(1)}}
+
+.ticket{position:relative;width:min(88vw,360px);background:linear-gradient(160deg,#fbf6e9,#efe4c8);
+  color:#2c2418;border-radius:18px;padding:26px 22px 22px;
+  box-shadow:0 22px 55px rgba(0,0,0,.6);opacity:0;transform:translateY(26px);
+  animation:ticketIn .6s .35s cubic-bezier(.22,1,.36,1) forwards}
+@keyframes ticketIn{to{opacity:1;transform:translateY(0)}}
+.ticket::before,.ticket::after{content:'';position:absolute;width:26px;height:26px;background:var(--bg);border-radius:50%;top:50%;transform:translateY(-50%)}
+.ticket::before{left:-13px}.ticket::after{right:-13px}
+.ticket-perf{position:absolute;left:16px;right:16px;top:50%;border-top:2px dashed rgba(44,36,24,.22)}
+.tk-head{text-align:center;border-bottom:1px solid rgba(44,36,24,.15);padding-bottom:14px;margin-bottom:14px}
+.tk-title{font-size:.72rem;letter-spacing:.34em;color:#a8895a;padding-left:.34em}
+.tk-ore-illus{width:96px;height:96px;margin:12px auto 8px;filter:drop-shadow(0 6px 12px rgba(0,0,0,.25))}
+.tk-ore-name{font-size:1.7rem;font-weight:bold;letter-spacing:.05em}
+.tk-rarity{display:inline-block;font-size:.66rem;letter-spacing:.12em;padding:3px 14px;border-radius:20px;border:1.5px solid;margin-top:8px}
+.tk-desc{font-size:.76rem;line-height:1.85;color:#6a5c44;text-align:center;margin-bottom:16px}
+.tk-serial-box{background:rgba(44,36,24,.06);border-radius:10px;padding:12px;text-align:center;margin-bottom:8px}
+.tk-serial-label{font-size:.6rem;letter-spacing:.24em;color:#a8895a}
+.tk-serial{font-family:'Courier New',monospace;font-size:1.25rem;font-weight:bold;letter-spacing:.16em;color:#2c2418;margin-top:4px}
+.tk-note{font-size:.66rem;line-height:1.7;color:#8a7a5c;text-align:center;margin-top:10px}
+.tk-note b{color:#b34;font-weight:bold}
+.tk-used{position:absolute;inset:0;display:none;align-items:center;justify-content:center;background:rgba(251,246,233,.72);border-radius:18px;z-index:5}
+.tk-used span{border:4px solid #b34;color:#b34;font-size:1.5rem;font-weight:bold;letter-spacing:.2em;padding:8px 24px;border-radius:12px;transform:rotate(-14deg);opacity:.85}
+
+.staff-cta{width:min(88vw,360px);margin-top:18px;text-align:center;font-size:.78rem;color:#c8c4d6;line-height:1.8}
+.staff-cta b{color:var(--gold)}
+.mark-used{width:min(88vw,360px);margin-top:16px;padding:14px;border-radius:14px;font-family:inherit;
+  font-size:.92rem;letter-spacing:.08em;cursor:pointer;transition:all .2s;
+  background:rgba(255,255,255,.05);border:1.5px solid rgba(255,255,255,.16);color:#cfccdd}
+.mark-used:active{transform:scale(.97)}
+.mark-used.arm{background:rgba(179,68,68,.16);border-color:#b34;color:#ff9a9a;animation:armBlink .8s ease-in-out infinite}
+@keyframes armBlink{0%,100%{opacity:1}50%{opacity:.6}}
+.mark-used.done{background:rgba(72,187,120,.14);border-color:#48bb78;color:#7fe0a0;cursor:default;animation:none}
+.mark-used-hint{width:min(88vw,360px);font-size:.66rem;color:#5c5870;margin-top:8px;text-align:center;line-height:1.6}
+.reset-link{margin-top:20px;font-size:.68rem;color:#4d4a5e;background:none;border:none;font-family:inherit;text-decoration:underline;cursor:pointer}
+
+/* sparkles */
+.spark{position:fixed;pointer-events:none;z-index:400;border-radius:50%;animation:sp var(--sd,.9s) ease-out forwards}
+@keyframes sp{0%{transform:translate(0,0) scale(1);opacity:1}100%{transform:translate(var(--sx,0),var(--sy,-90px)) scale(0);opacity:0}}
+.dust{position:absolute;pointer-events:none;z-index:5;border-radius:1px;animation:du .7s ease-out forwards}
+@keyframes du{0%{transform:translate(0,0) rotate(0);opacity:1}100%{transform:translate(var(--sx,0),var(--sy,40px)) rotate(200deg);opacity:0}}
+</style>
+</head>
+<body>
+
+<div id="scene">
+  <div id="starsWrap"></div>
+  <div class="torch-glow" style="width:220px;height:220px;background:rgba(246,164,61,.5);top:-40px;left:-40px"></div>
+  <div class="torch-glow" style="width:260px;height:260px;background:rgba(99,179,237,.28);bottom:-60px;right:-50px;animation-delay:.8s"></div>
+</div>
+
+<!-- ============ START ============ -->
+<section class="screen on" id="start">
+  <div class="brand">B L O O M I X ・ 文 化 祭</div>
+  <h1 class="title">鉱石おみくじ<small>⛏ 高山の秘宝を掘り当てろ</small></h1>
+
+  <svg class="mine-art" viewBox="0 0 300 220" xmlns="http://www.w3.org/2000/svg">
+    <defs>
+      <linearGradient id="mtn" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#2a2a44"/><stop offset="1" stop-color="#12121f"/></linearGradient>
+      <linearGradient id="mtn2" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="#20203a"/><stop offset="1" stop-color="#0d0d18"/></linearGradient>
+      <radialGradient id="entry" cx="50%" cy="40%"><stop offset="0" stop-color="#3a2f1a"/><stop offset="1" stop-color="#080606"/></radialGradient>
+      <radialGradient id="lant" cx="50%" cy="40%"><stop offset="0" stop-color="#ffe08a"/><stop offset="1" stop-color="#c8791e"/></radialGradient>
+    </defs>
+    <!-- back mountains -->
+    <polygon points="0,220 70,90 150,220" fill="url(#mtn2)"/>
+    <polygon points="120,220 210,60 300,220" fill="url(#mtn)"/>
+    <polygon points="196,74 210,60 224,74 216,80 204,80" fill="#e8ecff" opacity=".7"/>
+    <!-- main mountain w/ mine -->
+    <polygon points="30,220 150,40 270,220" fill="url(#mtn)"/>
+    <polygon points="138,52 150,40 162,52 155,58 145,58" fill="#e8ecff" opacity=".8"/>
+    <!-- embedded gems -->
+    <polygon points="95,150 103,144 110,152 104,160 96,158" fill="#63b3ed" opacity=".8"/>
+    <polygon points="200,130 207,125 213,132 208,139 201,137" fill="#e53e3e" opacity=".75"/>
+    <polygon points="176,170 182,166 187,172 183,178 177,176" fill="#48bb78" opacity=".75"/>
+    <!-- mine entrance -->
+    <path d="M120,220 L120,175 Q150,150 180,175 L180,220 Z" fill="url(#entry)"/>
+    <!-- support beams -->
+    <rect x="116" y="172" width="9" height="48" rx="2" fill="#5a4326"/>
+    <rect x="175" y="172" width="9" height="48" rx="2" fill="#5a4326"/>
+    <path d="M112,174 Q150,146 188,174 L182,180 Q150,156 118,180 Z" fill="#6b5130"/>
+    <!-- rails -->
+    <rect x="132" y="212" width="36" height="3" fill="#7a6a4a" opacity=".8"/>
+    <line x1="138" y1="210" x2="138" y2="220" stroke="#8a7a58" stroke-width="2"/>
+    <line x1="162" y1="210" x2="162" y2="220" stroke="#8a7a58" stroke-width="2"/>
+    <!-- lantern -->
+    <line x1="150" y1="158" x2="150" y2="168" stroke="#3a2c18" stroke-width="1.5"/>
+    <circle cx="150" cy="174" r="7" fill="url(#lant)"/>
+    <circle cx="150" cy="174" r="14" fill="#ffcf6a" opacity=".18"/>
+    <!-- crossed pickaxes -->
+    <g transform="translate(150,120) scale(.9)" opacity=".92">
+      <g transform="rotate(30)"><rect x="-2" y="-24" width="4" height="46" rx="2" fill="#8a6a3a"/><path d="M-20,-24 Q0,-32 20,-24 L14,-18 Q0,-24 -14,-18 Z" fill="#c9c9d2"/></g>
+      <g transform="rotate(-30)"><rect x="-2" y="-24" width="4" height="46" rx="2" fill="#8a6a3a"/><path d="M-20,-24 Q0,-32 20,-24 L14,-18 Q0,-24 -14,-18 Z" fill="#d8d8e0"/></g>
+    </g>
+  </svg>
+
+  <p class="lead">スタッフから受け取った<b>QR</b>の先に、あなただけの鉱石が眠っています。<br>画面を<b>タップしてツルハシを振り</b>、高山を掘って秘宝を探し出そう！</p>
+  <button class="btn" id="startBtn">採 掘 を は じ め る</button>
+  <div class="hint-small" id="usedNotice" style="display:none">※ このQRの鉱石はすでに掘り出し済みです</div>
+</section>
+
+<!-- ============ DIG ============ -->
+<section class="screen" id="dig">
+  <div class="dig-head">
+    <h2>⛏ 高山を掘れ！</h2>
+    <div class="dig-status" id="digStatus">画面をタップしてツルハシを振ろう！</div>
+  </div>
+
+  <div class="card-frame" id="cardFrame">
+    <span class="corner tl"></span><span class="corner tr"></span><span class="corner bl"></span><span class="corner br"></span>
+    <div class="card-inner">
+      <div class="reward-layer" id="rewardLayer">
+        <div class="cave-glow" id="caveGlow"></div>
+        <div class="reward-shine"></div>
+        <svg class="reward-svg" id="rewardSvg" viewBox="0 0 100 100"></svg>
+        <div class="reward-name" id="rewardName"></div>
+      </div>
+      <canvas id="scratch"></canvas>
+      <svg class="big-pick" id="bigPick" viewBox="0 0 64 64">
+        <defs>
+          <linearGradient id="bpHead" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e6e9f0"/><stop offset="1" stop-color="#8b909c"/></linearGradient>
+          <linearGradient id="bpHandle" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#b07f42"/><stop offset="1" stop-color="#6e4a1e"/></linearGradient>
+        </defs>
+        <rect x="30" y="24" width="6" height="38" rx="3" transform="rotate(-2 33 43)" fill="url(#bpHandle)"/>
+        <path d="M6,24 Q10,10 30,15 L38,26 L22,31 Z" fill="url(#bpHead)"/>
+        <path d="M38,26 L46,15 Q60,8 52,22 L42,30 Z" fill="url(#bpHead)"/>
+        <path d="M6,24 Q10,10 30,15 L38,26 L22,31 Z" fill="none" stroke="rgba(255,255,255,.5)" stroke-width="1"/>
+        <line x1="12" y1="19" x2="24" y2="16" stroke="rgba(255,255,255,.55)" stroke-width="1.4" stroke-linecap="round"/>
+      </svg>
+    </div>
+  </div>
+
+  <div class="progress-wrap">
+    <div class="progress-track"><div class="progress-fill" id="progFill"></div></div>
+    <div class="progress-label" id="progLabel">発掘度 0%</div>
+  </div>
+  <button class="reveal-now" id="revealNow">一気に掘り出す ▶</button>
+</section>
+
+<!-- ============ RESULT ============ -->
+<section class="screen" id="result">
+  <div class="result-burst" id="resultBurst">- 採 掘 成 功 -</div>
+  <div class="fortune-line" id="fortuneLine"></div>
+
+  <div class="ticket">
+    <div class="ticket-perf"></div>
+    <div class="tk-used" id="tkUsed"><span>交換済</span></div>
+    <div class="tk-head">
+      <div class="tk-title">鉱 石 引 換 券</div>
+      <svg class="tk-ore-illus" id="tkOreIllus" viewBox="0 0 100 100"></svg>
+      <div class="tk-ore-name" id="tkOreName"></div>
+      <div class="tk-rarity" id="tkRarity"></div>
+    </div>
+    <div class="tk-desc" id="tkDesc"></div>
+    <div class="tk-serial-box">
+      <div class="tk-serial-label">S E R I A L　N O.</div>
+      <div class="tk-serial" id="tkSerial"></div>
+    </div>
+    <div class="tk-note">この画面をブースの<b>スタッフに提示</b>して鉱石と引き換えてください<br>※引き換えは<b>1回限り</b>有効です</div>
+  </div>
+
+  <div class="staff-cta">
+    掘り出した鉱石：<b id="ctaName"></b><br>
+    この引換券をブースのスタッフに提示してください
+  </div>
+
+  <button class="mark-used" id="markUsedBtn">スタッフ用 ▶ 交換済にする</button>
+  <div class="mark-used-hint" id="markUsedHint">※スタッフが実物を渡したら押してください（誤操作防止に2回タップ）</div>
+
+  <button class="reset-link" id="resetLink" style="display:none">（テスト用）もう一度引く</button>
+</section>
+
+<script>
+/* ========================= ORE DATA ========================= */
+const ORES = [
+  {id:'coal',name:'石炭',rarity:'よくある',fortune:'末吉',color:'#8a8a8a',glow:'#555',prob:.34,
+   desc:'黒く燃える石炭。地下のいたるところに眠る最も一般的な鉱石。燃料として重宝される。',
+   draw:s=>s.innerHTML=`<defs><radialGradient id="cg" cx="38%" cy="30%"><stop offset="0" stop-color="#767676"/><stop offset="1" stop-color="#1a1a1a"/></radialGradient></defs><polygon points="50,14 76,34 80,68 58,86 30,84 14,60 20,28" fill="url(#cg)"/><line x1="36" y1="26" x2="50" y2="18" stroke="rgba(255,255,255,.18)" stroke-width="2" stroke-linecap="round"/><line x1="26" y1="50" x2="37" y2="42" stroke="rgba(255,255,255,.12)" stroke-width="1.5" stroke-linecap="round"/>`},
+  {id:'iron',name:'鉄鉱石',rarity:'アンコモン',fortune:'小吉',color:'#c97b4b',glow:'#b06030',prob:.26,
+   desc:'茶褐色の鉄を含む鉱石。精錬すれば頑丈な道具が作れる。文明の礎となった鉱石。',
+   draw:s=>s.innerHTML=`<defs><linearGradient id="ig" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#d4956a"/><stop offset=".6" stop-color="#a85c30"/><stop offset="1" stop-color="#6e3818"/></linearGradient><linearGradient id="iv" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#e8b080"/><stop offset="1" stop-color="#c06830"/></linearGradient></defs><polygon points="50,12 78,30 82,66 60,88 28,85 14,58 18,28" fill="url(#ig)"/><polygon points="50,12 62,20 57,38 46,34 40,18" fill="url(#iv)" opacity=".75"/><polygon points="66,56 80,66 74,82 62,77" fill="url(#iv)" opacity=".6"/>`},
+  {id:'gold',name:'金鉱石',rarity:'レア',fortune:'中吉',color:'#f0c030',glow:'#e0a820',prob:.18,
+   desc:'黄金を含む輝かしい鉱石。古来より財宝の象徴として珍重されてきた至宝。',
+   draw:s=>s.innerHTML=`<defs><radialGradient id="gg" cx="35%" cy="28%"><stop offset="0" stop-color="#ffe566"/><stop offset=".5" stop-color="#f0b020"/><stop offset="1" stop-color="#a07010"/></radialGradient><radialGradient id="gs" cx="40%" cy="35%"><stop offset="0" stop-color="#fff9c4"/><stop offset="1" stop-color="#ffd000"/></radialGradient></defs><polygon points="50,12 78,28 82,62 58,88 28,85 14,56 20,26" fill="url(#gg)"/><polygon points="48,14 65,22 61,40 46,38 40,20" fill="url(#gs)" opacity=".85"/><polygon points="60,58 76,66 70,80 58,76 55,62" fill="url(#gs)" opacity=".65"/><circle cx="55" cy="20" r="3" fill="#fff" opacity=".9"/><line x1="55" y1="14" x2="55" y2="26" stroke="#fff" stroke-width="1.4" opacity=".7"/><line x1="49" y1="20" x2="61" y2="20" stroke="#fff" stroke-width="1.4" opacity=".7"/>`},
+  {id:'ruby',name:'ルビー',rarity:'レア',fortune:'吉',color:'#e53e3e',glow:'#c02020',prob:.10,
+   desc:'深紅に燃える情熱の宝石。勇気の象徴として、古来より王族に愛されてきた。',
+   draw:s=>s.innerHTML=`<defs><radialGradient id="rg" cx="35%" cy="28%"><stop offset="0" stop-color="#fc8181"/><stop offset=".5" stop-color="#e53e3e"/><stop offset="1" stop-color="#742a2a"/></radialGradient><radialGradient id="rh" cx="30%" cy="22%"><stop offset="0" stop-color="rgba(255,240,240,.9)"/><stop offset="1" stop-color="rgba(255,100,100,0)"/></radialGradient></defs><polygon points="50,10 76,32 76,68 50,90 24,68 24,32" fill="url(#rg)"/><polygon points="50,10 76,32 50,46" fill="rgba(255,120,120,.35)"/><polygon points="50,10 24,32 50,46" fill="rgba(255,180,180,.3)"/><polygon points="24,32 24,68 50,46" fill="rgba(160,20,20,.55)"/><polygon points="76,32 76,68 50,46" fill="rgba(120,10,10,.55)"/><polygon points="24,68 50,90 50,46" fill="rgba(90,8,8,.65)"/><polygon points="76,68 50,90 50,46" fill="rgba(110,12,12,.6)"/><ellipse cx="40" cy="28" rx="11" ry="7" fill="url(#rh)" transform="rotate(-20 40 28)"/>`},
+  {id:'emerald',name:'エメラルド',rarity:'エピック',fortune:'大吉',color:'#48bb78',glow:'#28a050',prob:.08,
+   desc:'深い緑に輝く神秘の宝石。繁栄と叡智の象徴。原生の森の奥に宿る神秘を映す。',
+   draw:s=>s.innerHTML=`<defs><linearGradient id="eg" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#6ee7a0"/><stop offset=".5" stop-color="#38a169"/><stop offset="1" stop-color="#1a5c38"/></linearGradient><linearGradient id="eh" x1="0" y1="0" x2=".8" y2=".8"><stop offset="0" stop-color="rgba(255,255,255,.65)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></linearGradient></defs><polygon points="34,14 66,14 82,32 82,68 66,86 34,86 18,68 18,32" fill="url(#eg)"/><polygon points="34,14 66,14 58,28 42,28" fill="rgba(120,240,160,.5)"/><polygon points="82,32 82,68 66,56 66,44" fill="rgba(14,70,38,.65)"/><polygon points="18,32 18,68 34,56 34,44" fill="rgba(80,190,120,.4)"/><polygon points="34,86 66,86 58,72 42,72" fill="rgba(8,50,28,.75)"/><polygon points="34,14 50,14 44,24 36,26" fill="url(#eh)"/>`},
+  {id:'diamond',name:'ダイヤモンド',rarity:'✦ レジェンダリー ✦',fortune:'大 当 た り',color:'#7fc7ff',glow:'#63b3ed',prob:.04,legendary:true,
+   desc:'大当たり！全ての宝石の頂点に立つ極めて稀な至高の鉱石。地の底で何万年もかけて生まれた永遠の輝きが、今あなたの手に。',
+   draw:s=>s.innerHTML=`<defs><radialGradient id="dg" cx="40%" cy="30%"><stop offset="0" stop-color="#fff"/><stop offset=".3" stop-color="#bee3f8"/><stop offset=".7" stop-color="#63b3ed"/><stop offset="1" stop-color="#2b6cb0"/></radialGradient><radialGradient id="dh" cx="30%" cy="22%"><stop offset="0" stop-color="rgba(255,255,255,.95)"/><stop offset="1" stop-color="rgba(255,255,255,0)"/></radialGradient><linearGradient id="df1" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="rgba(180,225,255,.65)"/><stop offset="1" stop-color="rgba(40,100,210,.45)"/></linearGradient><linearGradient id="df2" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="rgba(255,255,255,.35)"/><stop offset="1" stop-color="rgba(100,160,230,.55)"/></linearGradient></defs><polygon points="30,22 70,22 80,40 20,40" fill="url(#dg)"/><polygon points="50,10 70,22 50,32" fill="url(#df2)"/><polygon points="50,10 30,22 50,32" fill="rgba(210,238,255,.75)"/><polygon points="30,22 20,40 36,35" fill="rgba(150,200,250,.5)"/><polygon points="70,22 80,40 64,35" fill="rgba(80,140,220,.6)"/><polygon points="20,40 50,88 50,56" fill="rgba(40,100,210,.72)"/><polygon points="80,40 50,88 50,56" fill="rgba(100,170,240,.52)"/><polygon points="20,40 80,40 50,56" fill="url(#df1)"/><ellipse cx="44" cy="30" rx="9" ry="5.5" fill="url(#dh)" transform="rotate(-16 44 30)"/><circle cx="50" cy="10" r="2.4" fill="#fff"/><line x1="50" y1="4" x2="50" y2="16" stroke="#fff" stroke-width="1.2" opacity=".75"/><line x1="44" y1="10" x2="56" y2="10" stroke="#fff" stroke-width="1.2" opacity=".75"/>`},
+];
+const oreById = Object.fromEntries(ORES.map(o=>[o.id,o]));
+
+/* ========================= QR / STATE ========================= */
+const params = new URLSearchParams(location.search);
+const forcedOre = params.get('ore');           // QRで結果を固定する場合
+const qrId = params.get('id') || 'preview';    // 1QR=1結果 のキー
+const isPreview = qrId === 'preview';
+const storeKey = 'komikuji_' + qrId;
+
+function rollOre(){
+  const r = Math.random(); let c = 0;
+  for(const o of ORES){ c += o.prob; if(r < c) return o.id; }
+  return ORES[0].id;
+}
+function makeSerial(oreId){
+  const prefix = oreId.slice(0,3).toUpperCase();
+  const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  let seed = 0; for(const ch of (qrId+oreId)) seed = (seed*31 + ch.charCodeAt(0)) >>> 0;
+  let body = '';
+  for(let i=0;i<6;i++){ seed = (seed*1103515245 + 12345 + Math.floor(Math.random()*7)) >>> 0; body += chars[seed % chars.length]; if(i===2) body += '-'; }
+  return `${prefix}-${body}`;
+}
+
+// load or create the result for this QR
+let state = null;
+try{ state = JSON.parse(localStorage.getItem(storeKey) || 'null'); }catch(e){}
+if(!state){
+  const oreId = (forcedOre && oreById[forcedOre]) ? forcedOre : rollOre();
+  state = { oreId, serial: makeSerial(oreId), scratched:false, used:false };
+  saveState();
+}
+function saveState(){ try{ localStorage.setItem(storeKey, JSON.stringify(state)); }catch(e){} }
+
+let currentOre = oreById[state.oreId];
+
+/* ========================= SCENE ========================= */
+(function stars(){
+  const w = document.getElementById('starsWrap');
+  for(let i=0;i<120;i++){
+    const s=document.createElement('div');s.className='star';
+    const sz=Math.random()*2+.4;
+    s.style.cssText=`width:${sz}px;height:${sz}px;left:${Math.random()*100}%;top:${Math.random()*100}%;--d:${2+Math.random()*4}s;--o:${.1+Math.random()*.3};animation-delay:${-Math.random()*5}s`;
+    w.appendChild(s);
+  }
+})();
+
+/* ========================= SCREEN NAV ========================= */
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.toggle('on', s.id===id)); }
+
+/* ========================= START ========================= */
+if(state.scratched){
+  document.getElementById('usedNotice').style.display='block';
+  document.getElementById('startBtn').textContent = '引 換 券 を 見 る';
+}
+document.getElementById('startBtn').addEventListener('click', ()=>{
+  if(state.scratched){ goResult(false); }
+  else { startDig(); }
+});
+
+/* ========================= DIG (scratch) ========================= */
+const canvas = document.getElementById('scratch');
+const sctx = canvas.getContext('2d', { willReadFrequently:true });
+const rewardLayer = document.getElementById('rewardLayer');
+const progFill = document.getElementById('progFill');
+const progLabel = document.getElementById('progLabel');
+const digStatus = document.getElementById('digStatus');
+const bigPick = document.getElementById('bigPick');
+const cardFrame = document.getElementById('cardFrame');
+const revealNowBtn = document.getElementById('revealNow');
+let digging=false, revealed=false, lastP=null, moveCount=0;
+
+function startDig(){
+  // set up beneath (reward) layer for the actual ore
+  document.getElementById('rewardSvg').innerHTML='';
+  currentOre.draw(document.getElementById('rewardSvg'));
+  document.getElementById('rewardSvg').style.filter=`drop-shadow(0 0 16px ${currentOre.glow})`;
+  document.getElementById('caveGlow').style.background=currentOre.glow;
+  const rn=document.getElementById('rewardName');
+  rn.textContent=currentOre.name; rn.style.color=currentOre.color;
+
+  show('dig');
+  requestAnimationFrame(()=>{ requestAnimationFrame(setupCanvas); });
+}
+
+function setupCanvas(){
+  const rect = canvas.getBoundingClientRect();
+  const dpr = Math.min(window.devicePixelRatio||1, 2.5);
+  canvas.width = Math.round(rect.width*dpr);
+  canvas.height = Math.round(rect.height*dpr);
+  sctx.setTransform(dpr,0,0,dpr,0,0);
+  drawCover(rect.width, rect.height);
+}
+
+function drawCover(w,h){
+  // rocky mountain surface cover
+  const g = sctx.createLinearGradient(0,0,w,h);
+  g.addColorStop(0,'#565049'); g.addColorStop(.35,'#403a34'); g.addColorStop(.6,'#4a443c'); g.addColorStop(1,'#332e28');
+  sctx.fillStyle=g; sctx.fillRect(0,0,w,h);
+  // strata bands
+  for(let i=0;i<7;i++){
+    sctx.fillStyle=`rgba(0,0,0,${.04+Math.random()*.05})`;
+    const y=(h/7)*i+Math.random()*8;
+    sctx.fillRect(0,y,w,6+Math.random()*10);
+  }
+  // rock speckles
+  for(let i=0;i<520;i++){
+    const x=Math.random()*w,y=Math.random()*h,r=Math.random()*1.8+.3;
+    const t=Math.random();
+    sctx.fillStyle = t<.5?`rgba(255,255,255,${Math.random()*.12})`:`rgba(0,0,0,${Math.random()*.22})`;
+    sctx.beginPath();sctx.arc(x,y,r,0,7);sctx.fill();
+  }
+  // small embedded crystals hint
+  const gemCols=['rgba(99,179,237,.5)','rgba(229,62,62,.45)','rgba(72,187,120,.45)','rgba(246,196,83,.5)'];
+  for(let i=0;i<6;i++){
+    const x=20+Math.random()*(w-40),y=20+Math.random()*(h-40),s=3+Math.random()*3;
+    sctx.fillStyle=gemCols[i%gemCols.length];
+    sctx.beginPath();sctx.moveTo(x,y-s);sctx.lineTo(x+s,y);sctx.lineTo(x,y+s);sctx.lineTo(x-s,y);sctx.closePath();sctx.fill();
+  }
+  // mountain ridge shading (reads as a high peak)
+  sctx.strokeStyle='rgba(0,0,0,.22)';sctx.lineWidth=Math.max(1.5,w*0.006);
+  sctx.beginPath();sctx.moveTo(w*0.5,h*0.07);sctx.lineTo(w*0.16,h*0.94);sctx.moveTo(w*0.5,h*0.07);sctx.lineTo(w*0.86,h*0.94);sctx.stroke();
+  sctx.strokeStyle='rgba(255,255,255,.08)';sctx.lineWidth=Math.max(1,w*0.004);
+  sctx.beginPath();sctx.moveTo(w*0.5,h*0.09);sctx.lineTo(w*0.3,h*0.6);sctx.stroke();
+  // snow cap
+  sctx.fillStyle='rgba(240,244,255,.92)';
+  sctx.beginPath();
+  sctx.moveTo(w*0.5,h*0.07);
+  sctx.lineTo(w*0.62,h*0.23);
+  sctx.lineTo(w*0.555,h*0.205);
+  sctx.lineTo(w*0.5,h*0.25);
+  sctx.lineTo(w*0.445,h*0.205);
+  sctx.lineTo(w*0.38,h*0.23);
+  sctx.closePath();sctx.fill();
+
+  // prompt
+  sctx.textAlign='center';
+  sctx.font=`600 ${Math.round(w*0.11)}px serif`;
+  sctx.fillText('⛏', w/2, h*0.55);
+  sctx.font=`600 ${Math.round(w*0.056)}px 'Hiragino Mincho ProN',serif`;
+  sctx.fillStyle='rgba(255,255,255,.78)';
+  sctx.fillText('タップして掘る', w/2, h*0.66);
+  sctx.font=`400 ${Math.round(w*0.038)}px 'Hiragino Mincho ProN',serif`;
+  sctx.fillStyle='rgba(255,255,255,.4)';
+  sctx.fillText('TAP TO DIG', w/2, h*0.72);
+}
+
+function ptFromEvent(e){
+  const rect=canvas.getBoundingClientRect();
+  const p = e.touches? e.touches[0] : e;
+  return { x:p.clientX-rect.left, y:p.clientY-rect.top };
+}
+// remove a rough chunk of rock (irregular edges)
+function chip(x,y,rad){
+  sctx.globalCompositeOperation='destination-out';
+  sctx.beginPath();sctx.arc(x,y,rad,0,7);sctx.fill();
+  for(let i=0;i<5;i++){
+    const a=Math.random()*7, d=rad*(.45+Math.random()*.6);
+    sctx.beginPath();sctx.arc(x+Math.cos(a)*d,y+Math.sin(a)*d,rad*(.35+Math.random()*.4),0,7);sctx.fill();
+  }
+  sctx.globalCompositeOperation='source-over';
+}
+// continuous digging while dragging
+function dragChip(x,y){
+  const rad=Math.max(16,canvas.getBoundingClientRect().width*0.055);
+  if(lastP){
+    const dx=x-lastP.x,dy=y-lastP.y,dist=Math.hypot(dx,dy),steps=Math.max(1,Math.ceil(dist/(rad*0.5)));
+    for(let i=0;i<=steps;i++) chip(lastP.x+dx*i/steps, lastP.y+dy*i/steps, rad);
+  } else chip(x,y,rad);
+  lastP={x,y};
+}
+function movePick(x,y){ bigPick.style.left=x+'px'; bigPick.style.top=y+'px'; }
+
+function spawnDust(x,y,count){
+  const cave=document.querySelector('.card-inner');
+  for(let i=0;i<(count||5);i++){
+    const d=document.createElement('div');d.className='dust';
+    const sz=2+Math.random()*4, g=Math.floor(80+Math.random()*70);
+    d.style.cssText=`left:${x}px;top:${y}px;width:${sz}px;height:${sz}px;background:rgb(${g},${g-12},${g-26});--sx:${(Math.random()-.5)*70}px;--sy:${20+Math.random()*40}px`;
+    cave.appendChild(d);setTimeout(()=>d.remove(),760);
+  }
+}
+function spawnHitFlash(x,y){
+  const c=document.querySelector('.card-inner');
+  const f=document.createElement('div');f.className='hit-flash';
+  const sz=Math.max(40,c.clientWidth*0.28);
+  f.style.cssText=`left:${x}px;top:${y}px;width:${sz}px;height:${sz}px`;
+  c.appendChild(f);setTimeout(()=>f.remove(),340);
+}
+function crackFlash(x,y){
+  const c=document.querySelector('.card-inner');
+  const ns='http://www.w3.org/2000/svg';
+  const svg=document.createElementNS(ns,'svg');
+  svg.setAttribute('class','crack-flash');
+  svg.setAttribute('width',c.clientWidth);svg.setAttribute('height',c.clientHeight);
+  const arms=4+Math.floor(Math.random()*3);
+  for(let i=0;i<arms;i++){
+    const ang=(Math.PI*2*i/arms)+(Math.random()-.5), len=14+Math.random()*28;
+    const l=document.createElementNS(ns,'line');
+    l.setAttribute('x1',x);l.setAttribute('y1',y);
+    l.setAttribute('x2',x+Math.cos(ang)*len);l.setAttribute('y2',y+Math.sin(ang)*len);
+    l.setAttribute('stroke','rgba(15,10,6,.85)');
+    l.setAttribute('stroke-width',(1+Math.random()*1.6).toFixed(1));
+    l.setAttribute('stroke-linecap','round');
+    svg.appendChild(l);
+  }
+  c.appendChild(svg);setTimeout(()=>svg.remove(),520);
+}
+
+// a full pickaxe strike (on tap)
+function strike(x,y){
+  const w=canvas.getBoundingClientRect().width;
+  chip(x,y, Math.max(24,w*0.1));
+  bigPick.style.opacity='1';
+  movePick(x,y);
+  bigPick.classList.remove('swing'); void bigPick.offsetWidth; bigPick.classList.add('swing');
+  cardFrame.classList.remove('shake'); void cardFrame.offsetWidth; cardFrame.classList.add('shake');
+  spawnHitFlash(x,y);
+  crackFlash(x,y);
+  spawnDust(x,y,9);
+  lastP={x,y};
+  checkProgress();
+}
+
+function onDown(e){ if(revealed) return; e.preventDefault(); digging=true; lastP=null; const p=ptFromEvent(e); strike(p.x,p.y); }
+function onMove(e){
+  if(!digging||revealed) return;
+  e.preventDefault();
+  const p=ptFromEvent(e);
+  movePick(p.x,p.y);
+  dragChip(p.x,p.y);
+  if((moveCount++ % 2)===0) spawnDust(p.x,p.y,3);
+  if((moveCount % 5)===0) checkProgress();
+}
+function onUp(){ if(!digging) return; digging=false; lastP=null; checkProgress(); setTimeout(()=>{ if(!digging) bigPick.style.opacity='0'; },300); }
+
+canvas.addEventListener('pointerdown', onDown);
+canvas.addEventListener('pointermove', onMove);
+window.addEventListener('pointerup', onUp);
+
+const STATUS=[
+  [0,'画面をタップして高山を掘り進めよう！'],
+  [12,'ガツン！ 岩の奥に何かが埋まっている…'],
+  [30,'キラリ…光るものが見えてきた！'],
+  [48,'あと少し！ 鉱石が顔を出す！'],
+];
+function checkProgress(){
+  const w=canvas.width,h=canvas.height;
+  if(!w||!h) return;
+  // sample
+  let img;
+  try{ img=sctx.getImageData(0,0,w,h).data; }catch(e){ return; }
+  let clear=0, total=0;
+  const step=Math.max(4, Math.floor((w*h)/(90*90))); // sample density
+  for(let i=3;i<img.length;i+=4*step){ total++; if(img[i]<40) clear++; }
+  const pct=Math.round(clear/total*100);
+  progFill.style.width=Math.min(100,pct)+'%';
+  progLabel.textContent=`発掘度 ${Math.min(100,pct)}%`;
+  let st=STATUS[0][1];
+  for(const [th,msg] of STATUS){ if(pct>=th) st=msg; }
+  digStatus.textContent=st;
+  if(pct>=25) document.getElementById('rewardName').style.opacity='1';
+  if(pct>=20) revealNowBtn.classList.add('show');
+  if(pct>=55 && !revealed){ autoReveal(); }
+}
+
+revealNowBtn.addEventListener('click', autoReveal);
+function autoReveal(){
+  if(revealed) return; revealed=true;
+  revealNowBtn.classList.remove('show');
+  // clear cover fully with fade
+  canvas.style.transition='opacity .5s'; canvas.style.opacity='0';
+  digStatus.textContent='鉱石を掘り当てた！';
+  progFill.style.width='100%'; progLabel.textContent='発掘度 100%';
+  document.getElementById('rewardName').style.opacity='1';
+  burstSparkles(window.innerWidth/2, window.innerHeight/2, currentOre.glow, currentOre.legendary?18:10);
+  state.scratched=true; saveState();
+  setTimeout(()=>goResult(true), 950);
+}
+
+/* ========================= RESULT / VOUCHER ========================= */
+function goResult(animate){
+  // fortune
+  const fl=document.getElementById('fortuneLine');
+  fl.textContent=currentOre.fortune;
+  fl.style.color=currentOre.color;
+  fl.style.textShadow=`0 0 20px ${currentOre.glow}80`;
+  document.getElementById('resultBurst').textContent = currentOre.legendary ? '★ 大 当 た り ★' : '- 採 掘 成 功 -';
+
+  // ticket ore
+  const ti=document.getElementById('tkOreIllus'); ti.innerHTML=''; currentOre.draw(ti);
+  ti.style.filter=`drop-shadow(0 4px 10px ${currentOre.glow}80)`;
+  document.getElementById('tkOreName').textContent=currentOre.name;
+  const rr=document.getElementById('tkRarity');
+  rr.textContent=currentOre.rarity; rr.style.color=currentOre.color; rr.style.borderColor=currentOre.color;
+  document.getElementById('tkDesc').textContent=currentOre.desc;
+  document.getElementById('tkSerial').textContent=state.serial;
+  document.getElementById('ctaName').textContent=currentOre.name;
+  document.getElementById('tkUsed').style.display = state.used ? 'flex':'none';
+  renderUsedUI();
+
+  if(isPreview) document.getElementById('resetLink').style.display='inline';
+
+  show('result');
+  if(animate && currentOre.legendary){
+    const cx=window.innerWidth/2, cy=window.innerHeight*0.4;
+    setTimeout(()=>burstSparkles(cx,cy,'#f6c453',20),150);
+    setTimeout(()=>burstSparkles(cx,cy,'#fff',16),400);
+    setTimeout(()=>burstSparkles(cx,cy,currentOre.glow,18),700);
+  } else if(animate){
+    setTimeout(()=>burstSparkles(window.innerWidth/2, window.innerHeight*0.4, currentOre.glow,12),150);
+  }
+}
+
+/* ---- staff: mark voucher as used (two-tap confirm) ---- */
+const markUsedBtn = document.getElementById('markUsedBtn');
+const markUsedHint = document.getElementById('markUsedHint');
+let armTimer = null;
+function renderUsedUI(){
+  if(state.used){
+    markUsedBtn.textContent='✓ 交換済にしました';
+    markUsedBtn.className='mark-used done';
+    markUsedBtn.disabled=true;
+    markUsedHint.style.display='none';
+    document.getElementById('tkUsed').style.display='flex';
+  }
+}
+markUsedBtn.addEventListener('click', ()=>{
+  if(state.used) return;
+  if(markUsedBtn.classList.contains('arm')){
+    // confirmed
+    clearTimeout(armTimer);
+    state.used=true; saveState();
+    renderUsedUI();
+    burstSparkles(window.innerWidth/2, window.innerHeight*0.55, '#48bb78', 10);
+  } else {
+    markUsedBtn.classList.add('arm');
+    markUsedBtn.textContent='本当に交換済にする？ ▶ もう一度タップ';
+    armTimer=setTimeout(()=>{
+      markUsedBtn.classList.remove('arm');
+      markUsedBtn.textContent='スタッフ用 ▶ 交換済にする';
+    }, 3500);
+  }
+});
+
+document.getElementById('resetLink').addEventListener('click', ()=>{
+  localStorage.removeItem(storeKey);
+  location.reload();
+});
+
+/* ========================= SPARKLES ========================= */
+function burstSparkles(cx,cy,color,n){
+  for(let i=0;i<n;i++){
+    const s=document.createElement('div');s.className='spark';
+    const ang=Math.random()*Math.PI*2, dist=50+Math.random()*130, sz=3+Math.random()*6;
+    s.style.cssText=`left:${cx}px;top:${cy}px;width:${sz}px;height:${sz}px;background:${color};box-shadow:0 0 8px ${color};--sx:${Math.cos(ang)*dist}px;--sy:${Math.sin(ang)*dist-30}px;--sd:${.6+Math.random()*.6}s`;
+    document.body.appendChild(s);setTimeout(()=>s.remove(),1400);
+  }
+}
+
+window.addEventListener('resize', ()=>{ if(document.getElementById('dig').classList.contains('on') && !revealed) setupCanvas(); });
+</script>
+</body>
+</html>
